@@ -5,7 +5,7 @@ import { View, Text, TextInput, Button, FlatList, Picker, StyleSheet } from 'rea
 export default function StatScreen() {
     return (
       <View style={styles.container}>
-        <Text>Stats!</Text>
+        <Text>ToDo!</Text>
       </View>
     );
   }
