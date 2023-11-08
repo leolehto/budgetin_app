@@ -7,9 +7,10 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Income from './components/Income';
 import { PieChart } from 'react-native-chart-kit';
+import { BudgetProvider } from './components/BudgetContext';
+import { useBudget } from './components/BudgetContext';
 
-function Home({navigation}) {
-  const [budget, setBudget] = useState(0);
+function Home() {
   const [editing, setEditing] = useState(false);
   const [expense, setExpense] = useState("");
   const [expenses, setExpenses] = useState([]);
@@ -52,10 +53,11 @@ function Home({navigation}) {
   const closeStatsModalVisible = () => {
     setStatsModalVisible(false)
   }
+  const {budget, updateBudget} = useBudget();
   const handleSaveClick = () => {
     const newBudget = parseInt(budget);
     if (!isNaN(newBudget) && newBudget >= 0) {
-      setBudget(newBudget);
+      updateBudget(newBudget);
       setEditing(false);
       setModalVisible(false)
       
@@ -64,7 +66,7 @@ function Home({navigation}) {
   const addExpense = () => {
     if (expense !== '' && category !== '' && description!= '' && parseInt(expense) > 0) {
       const newExpense = {description, category, amount: parseInt(expense) };
-      setBudget((prevBudget) => prevBudget - parseInt(expense));
+      updateBudget((prevBudget) => prevBudget - parseInt(expense));
       setExpenses([...expenses, newExpense]);
       setExpense('');
       setDescription('');
@@ -117,9 +119,9 @@ function Home({navigation}) {
             value={budget !== 0 ? budget.toString() : ''}
             onChangeText={(text) => {
               if (text === '') {
-                setBudget(0);
+                updateBudget(0);
               } else {
-                setBudget(parseInt(text) || 0);
+                updateBudget(parseInt(text) || 0);
               }
             }}
           />
@@ -206,8 +208,11 @@ function Home({navigation}) {
             keyExtractor={(item, index) => index.toString()}
             renderItem={({item}) => (
               <View style={styles.flatlistData}>
+                <Text style={{color: 'orange', fontSize: 30, width:350, fontWeight: 'bold'}}>
+                  {item.amount}€
+                </Text>
                 <Text style={{color: 'black', fontSize: 25, width:350}}>
-                  {item.amount}€ {item.description}
+                  {item.description}
                 </Text>
               </View>
             )}>
@@ -531,11 +536,13 @@ const screenOptions = ({ route }) => ({
 const Tab = createBottomTabNavigator();
 export default function App() {
   return (
+    <BudgetProvider>
     <NavigationContainer>
       <Tab.Navigator screenOptions={screenOptions}>
         <Tab.Screen name="Expenses" component={Home} />
         <Tab.Screen name="Incomes" component={Income}/>
       </Tab.Navigator>
     </NavigationContainer>
+    </BudgetProvider>
   );
 }

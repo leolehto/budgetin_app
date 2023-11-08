@@ -6,9 +6,9 @@ import Icon from 'react-native-vector-icons/FontAwesome/';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { PieChart } from 'react-native-chart-kit';
+import { useBudget } from './BudgetContext';
 
 export default function Income() {
-  const [budget, setBudget] = useState(0);
   const [editing, setEditing] = useState(false);
   const [income, setIncome] = useState("");
   const [incomes, setIncomes] = useState([]);
@@ -50,11 +50,11 @@ export default function Income() {
   const closeStatsModalVisible = () => {
     setStatsModalVisible(false)
   }
-  
+  const {budget, updateBudget} = useBudget();
   const handleSaveClick = () => {
     const newBudget = parseInt(budget);
     if (!isNaN(newBudget) && newBudget >= 0) {
-      setBudget(newBudget);
+      updateBudget(newBudget);
       setEditing(false);
       setModalVisible(false)
     }
@@ -63,7 +63,7 @@ export default function Income() {
   const addIncome = () => {
     if (income !== '' && category !== '' && description!= '' && parseInt(income) > 0) {
       const newIncome = {description, category, amount: parseInt(income) };
-      setBudget((prevBudget) => prevBudget + parseInt(income));
+      updateBudget((prevBudget) => prevBudget + parseInt(income));
       setIncomes([...incomes, newIncome]);
       setIncome('');
       setDescription('');
@@ -113,9 +113,9 @@ export default function Income() {
             value={budget !== 0 ? budget.toString() : ''}
             onChangeText={(text) => {
               if (text === '') {
-                setBudget(0);
+                updateBudget(0);
               } else {
-                setBudget(parseInt(text) || 0);
+                updateBudget(parseInt(text) || 0);
               }
             }}
           />
@@ -202,6 +202,9 @@ export default function Income() {
             keyExtractor={(item, index) => index.toString()}
             renderItem={({item}) => (
               <View style={styles.flatlistData}>
+                <Text style={{color: 'black', fontSize: 30, width:350, fontWeight:'bold'}}>
+                  {item.amount}€ {item.description}
+                </Text>
                 <Text style={{color: 'black', fontSize: 25, width:350}}>
                   {item.amount}€ {item.description}
                 </Text>
