@@ -5,23 +5,21 @@ import { SelectList } from 'react-native-dropdown-select-list';
 import Icon from 'react-native-vector-icons/FontAwesome/';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import Income from './components/Income';
 import { PieChart } from 'react-native-chart-kit';
 
-function Home({navigation}) {
+export default function Income() {
   const [budget, setBudget] = useState(0);
   const [editing, setEditing] = useState(false);
-  const [expense, setExpense] = useState("");
-  const [expenses, setExpenses] = useState([]);
+  const [income, setIncome] = useState("");
+  const [incomes, setIncomes] = useState([]);
   const [description, setDescription] = useState("")
-  const [totalExpense, setTotalExpense] = useState(0);
+  const [totalIncome, setTotalIncome] = useState(0);
   const [category, setCategory] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
-  const [expenseModalVisible, setExpenseModalVisible] = useState(false);
-  const [expensesModalVisible, setExpensesModalVisible] = useState(false)
+  const [incomeModalVisible, setIncomeModalVisible] = useState(false);
+  const [incomesModalVisible, setIncomesModalVisible] = useState(false)
   const [statsModalVisible, setStatsModalVisible] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState(null);
-  
   
   const handleEditClick = () => {
     setModalVisible(true);
@@ -31,19 +29,19 @@ function Home({navigation}) {
     setModalVisible(false);
   }
   
-  const handleAddExpenseClick = () => {
-    setExpenseModalVisible(true);
+  const handleAddIncomeClick = () => {
+    setIncomeModalVisible(true);
   };
 
-  const closeExpenseModalVisible = () => {
-    setExpenseModalVisible(false);
+  const closeIncomeModalVisible = () => {
+    setIncomeModalVisible(false);
   }
-  const handleAddExpensesClick = () => {
-    setExpensesModalVisible(true);
+  const handleAddIncomesClick = () => {
+    setIncomesModalVisible(true);
   };
 
-  const closeExpensesModalVisible = () => {
-    setExpensesModalVisible(false);
+  const closeIncomesModalVisible = () => {
+    setIncomesModalVisible(false);
   }
 
   const handleStatsModalVisible = () => {
@@ -52,59 +50,57 @@ function Home({navigation}) {
   const closeStatsModalVisible = () => {
     setStatsModalVisible(false)
   }
+  
   const handleSaveClick = () => {
     const newBudget = parseInt(budget);
     if (!isNaN(newBudget) && newBudget >= 0) {
       setBudget(newBudget);
       setEditing(false);
       setModalVisible(false)
-      
     }
   };
-  const addExpense = () => {
-    if (expense !== '' && category !== '' && description!= '' && parseInt(expense) > 0) {
-      const newExpense = {description, category, amount: parseInt(expense) };
-      setBudget((prevBudget) => prevBudget - parseInt(expense));
-      setExpenses([...expenses, newExpense]);
-      setExpense('');
+
+  const addIncome = () => {
+    if (income !== '' && category !== '' && description!= '' && parseInt(income) > 0) {
+      const newIncome = {description, category, amount: parseInt(income) };
+      setBudget((prevBudget) => prevBudget + parseInt(income));
+      setIncomes([...incomes, newIncome]);
+      setIncome('');
       setDescription('');
-      setExpenseModalVisible(false);
+      setIncomeModalVisible(false);
       
       const updatedCategories = categories.map((cat) => {
         if (cat.value === category) {
-          cat.expenses.push(newExpense);
+          cat.incomes.push(newIncome);
         }
         return cat;
       });
       setCategories(updatedCategories);
     } 
   }
+
   useEffect(() => {
     let total = 0;
-    expenses.forEach((item) => {
+    incomes.forEach((item) => {
       total += item.amount;
     });
-    setTotalExpense(total);
-  }, [expenses]);
+    setTotalIncome(total);
+  }, [incomes]);
 
   const [categories, setCategories] = useState([
-    { key: '1', value: 'Ostokset', expenses: [], icon: 'shopping-cart', color: 'red'},
-    { key: '2', value: 'Kuljetus', expenses: [], icon: 'bus', color: 'brown' },
-    { key: '3', value: 'Harrastukset', expenses: [], icon: 'futbol-o', color: 'purple' },
-    { key: '4', value: 'Koti', expenses: [], icon: 'home', color: 'gray' },
-    {key: '5', value: 'Kahvilat', expenses: [], icon: 'coffee', color: 'yellow'},
-    {key: '6', value: 'Lemmikki', expenses: [], icon: 'paw', color: 'blue'},
-    {key: '7', value: 'Sijoitukset', expenses: [], icon: 'money',color: 'green'},
-    {key: '8', value: 'Autoilu', expenses: [], icon: 'car',color: 'pink'},
-    {key: '9', value: 'Muut', expenses: [], icon: 'question',color: 'magenta'}
+    { key: '1', value: 'Palkka', incomes: [], icon: 'euro', color: 'red'},
+    { key: '2', value: 'Lahja', incomes: [], icon: 'gift', color: 'brown' },
+    { key: '3', value: 'Muut', incomes: [], icon: 'question', color: 'purple' },
+    { key: '4', value: 'Kumppani', incomes: [], icon: 'user', color: 'gray' },
+  
     // Add more categories as needed
   ]);
   const statData = categories.map(category => ({
     name: category.value,
-    population: category.expenses.reduce((total, expense) => total + expense.amount, 0),
+    population: category.incomes.reduce((total, income) => total + income.amount, 0),
     color: category.color
   }))
-
+   
   return (
     
     <View style={styles.container}>
@@ -140,21 +136,21 @@ function Home({navigation}) {
         </TouchableOpacity>
       </View>
       <View style={styles.container2}>
-      <TouchableOpacity color={'orange'} style={styles.expenseButton} title="Lisää kulu" onPress={handleAddExpenseClick} >
+      <TouchableOpacity color={'orange'} style={styles.expenseButton} title="Lisää kulu" onPress={handleAddIncomeClick} >
         <Icon name='plus-circle' color='orange' size={60}></Icon>
       </TouchableOpacity>
       <TouchableOpacity color={'orange'} style={styles.navigateButton} title="Lisää kulu" >
         <Icon name='bar-chart-o' color='orange' size={45}  onPress={handleStatsModalVisible}></Icon>
       </TouchableOpacity>
       </View>
-      <Modal visible={expenseModalVisible} animationType="slide" transparent={false}>
+      <Modal visible={incomeModalVisible} animationType="slide" transparent={false}>
         <View style={styles.modalContainer2}>
           <View style={styles.addExpense}>
             <TextInput style={styles.expenseInput}
-              placeholder="Lisää kulu"
+              placeholder="Lisää tulo"
               keyboardType="numeric"
-              value={expense}
-              onChangeText={(text) => setExpense(text)}
+              value={income}
+              onChangeText={(text) => setIncome(text)}
             />
             <TextInput style={styles.expenseInput}
               placeholder="Lisää kuvaus"
@@ -170,10 +166,10 @@ function Home({navigation}) {
             />
           </View>
           <View style={styles.Modal2Buttons}>
-          <TouchableOpacity style={styles.editButton2} onPress={addExpense}>
+          <TouchableOpacity style={styles.editButton2} onPress={addIncome}>
             <Icon name="check" size={40} color="orange" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.editButton2} title="" onPress={closeExpenseModalVisible} >
+          <TouchableOpacity style={styles.editButton2} title="" onPress={closeIncomeModalVisible} >
             <Icon name="close" size={40} color="orange" /> 
           </TouchableOpacity>
           </View>
@@ -183,7 +179,7 @@ function Home({navigation}) {
         {categories.map((cat) => (
           <TouchableOpacity 
             key={cat.key}
-            onPress={() => {setSelectedCategory(cat); handleAddExpensesClick();}}
+            onPress={() => {setSelectedCategory(cat); handleAddIncomesClick();}}
             style={styles.categoryButton}
           >
             <View style={styles.dataDetails} >
@@ -195,14 +191,14 @@ function Home({navigation}) {
           </TouchableOpacity>
         ))}
       </View>
-      <Modal visible={expensesModalVisible} animationType="slide" transparent={false} onBackdropPress={() => expenseModalVisible(false)}>
+      <Modal visible={incomesModalVisible} animationType="slide" transparent={false} onBackdropPress={() => incomeModalVisible(false)}>
         <View style={styles.modalContainer3}>
           {selectedCategory && (
           <Icon style={{marginBottom: 25}} name={selectedCategory.icon} color={'white'} size={50}></Icon>
           )}
           {selectedCategory && (
           <FlatList 
-            data={selectedCategory.expenses}
+            data={selectedCategory.incomes}
             keyExtractor={(item, index) => index.toString()}
             renderItem={({item}) => (
               <View style={styles.flatlistData}>
@@ -213,7 +209,7 @@ function Home({navigation}) {
             )}>
           </FlatList>
           )}
-          <TouchableOpacity style={styles.editButton3} title="" onPress={closeExpensesModalVisible} >
+          <TouchableOpacity style={styles.editButton3} title="" onPress={closeIncomesModalVisible} >
             <Icon name="close" size={55} color="orange" /> 
           </TouchableOpacity>
         </View>
@@ -243,7 +239,7 @@ function Home({navigation}) {
           </TouchableOpacity>
         </View>
       </Modal>
-      <View style={styles.totalExpenseData}>
+      <View style={styles.totalIncomeData}>
                
       </View>
      </ScrollView>
@@ -513,29 +509,4 @@ elevation: 4,
     borderRadius: 50,
     alignItems: 'center'
   }
- 
-});
-const screenOptions = ({ route }) => ({
-  tabBarIcon: ({ focused, color, size }) => {
-    let iconName;
-
-    if (route.name === 'Expenses') {
-      iconName = 'credit-card-alt';
-    } else if (route.name === 'Incomes') {
-      iconName = 'bank';
-    }
-
-    return <Icon name={iconName} size={30} color={'orange'} />;
-  }
-});
-const Tab = createBottomTabNavigator();
-export default function App() {
-  return (
-    <NavigationContainer>
-      <Tab.Navigator screenOptions={screenOptions}>
-        <Tab.Screen name="Expenses" component={Home} />
-        <Tab.Screen name="Incomes" component={Income}/>
-      </Tab.Navigator>
-    </NavigationContainer>
-  );
-}
+})
