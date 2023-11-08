@@ -6,18 +6,19 @@ import Icon from 'react-native-vector-icons/FontAwesome/';
 import { PieChart } from 'react-native-chart-kit';
 import { useBudget } from './BudgetContext';
 
-export default function Income() {
+export default function Expense() {
   const [editing, setEditing] = useState(false);
-  const [income, setIncome] = useState("");
-  const [incomes, setIncomes] = useState([]);
+  const [expense, setExpense] = useState("");
+  const [expenses, setExpenses] = useState([]);
   const [description, setDescription] = useState("")
-  const [totalIncome, setTotalIncome] = useState(0);
+  const [totalExpense, setTotalExpense] = useState(0);
   const [category, setCategory] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
-  const [incomeModalVisible, setIncomeModalVisible] = useState(false);
-  const [incomesModalVisible, setIncomesModalVisible] = useState(false)
+  const [expenseModalVisible, setExpenseModalVisible] = useState(false);
+  const [expensesModalVisible, setExpensesModalVisible] = useState(false)
   const [statsModalVisible, setStatsModalVisible] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState(null);
+  
   
   const handleEditClick = () => {
     setModalVisible(true);
@@ -27,19 +28,19 @@ export default function Income() {
     setModalVisible(false);
   }
   
-  const handleAddIncomeClick = () => {
-    setIncomeModalVisible(true);
+  const handleAddExpenseClick = () => {
+    setExpenseModalVisible(true);
   };
 
-  const closeIncomeModalVisible = () => {
-    setIncomeModalVisible(false);
+  const closeExpenseModalVisible = () => {
+    setExpenseModalVisible(false);
   }
-  const handleAddIncomesClick = () => {
-    setIncomesModalVisible(true);
+  const handleAddExpensesClick = () => {
+    setExpensesModalVisible(true);
   };
 
-  const closeIncomesModalVisible = () => {
-    setIncomesModalVisible(false);
+  const closeExpensesModalVisible = () => {
+    setExpensesModalVisible(false);
   }
 
   const handleStatsModalVisible = () => {
@@ -55,54 +56,58 @@ export default function Income() {
       updateBudget(newBudget);
       setEditing(false);
       setModalVisible(false)
+      
     }
   };
-
-  const addIncome = () => {
-    if (income !== '' && category !== '' && description!= '' && parseInt(income) > 0) {
-      const newIncome = {description, category, amount: parseInt(income) };
-      updateBudget((prevBudget) => prevBudget + parseInt(income));
-      setIncomes([...incomes, newIncome]);
-      setIncome('');
+  const addExpense = () => {
+    if (expense !== '' && category !== '' && description!= '' && parseInt(expense) > 0) {
+      const newExpense = {description, category, amount: parseInt(expense) };
+      updateBudget((prevBudget) => prevBudget - parseInt(expense));
+      setExpenses([...expenses, newExpense]);
+      setExpense('');
       setDescription('');
-      setIncomeModalVisible(false);
+      setExpenseModalVisible(false);
       
       const updatedCategories = categories.map((cat) => {
         if (cat.value === category) {
-          cat.incomes.push(newIncome);
+          cat.expenses.push(newExpense);
         }
         return cat;
       });
       setCategories(updatedCategories);
     } 
   }
-
   useEffect(() => {
     let total = 0;
-    incomes.forEach((item) => {
+    expenses.forEach((item) => {
       total += item.amount;
     });
-    setTotalIncome(total);
-  }, [incomes]);
+    setTotalExpense(total);
+  }, [expenses]);
 
   const [categories, setCategories] = useState([
-    { key: '1', value: 'Palkka', incomes: [], icon: 'euro', color: 'red'},
-    { key: '2', value: 'Lahja', incomes: [], icon: 'gift', color: 'brown' },
-    { key: '3', value: 'Muut', incomes: [], icon: 'question', color: 'purple' },
-    { key: '4', value: 'Kumppani', incomes: [], icon: 'user', color: 'gray' },
-  
+    { key: '1', value: 'Ostokset', expenses: [], icon: 'shopping-cart', color: 'red'},
+    { key: '2', value: 'Kuljetus', expenses: [], icon: 'bus', color: 'brown' },
+    { key: '3', value: 'Harrastukset', expenses: [], icon: 'futbol-o', color: 'purple' },
+    { key: '4', value: 'Koti', expenses: [], icon: 'home', color: 'gray' },
+    {key: '5', value: 'Kahvilat', expenses: [], icon: 'coffee', color: 'yellow'},
+    {key: '6', value: 'Lemmikki', expenses: [], icon: 'paw', color: 'blue'},
+    {key: '7', value: 'Sijoitukset', expenses: [], icon: 'money',color: 'green'},
+    {key: '8', value: 'Autoilu', expenses: [], icon: 'car',color: 'pink'},
+    {key: '9', value: 'Muut', expenses: [], icon: 'question',color: 'magenta'}
     // Add more categories as needed
   ]);
   const statData = categories.map(category => ({
     name: category.value,
-    population: category.incomes.reduce((total, income) => total + income.amount, 0),
+    population: category.expenses.reduce((total, expense) => total + expense.amount, 0),
     color: category.color
   }))
-   
+
   return (
     
     <View style={styles.container}>
       <ScrollView>
+        <StatusBar animated={true} backgroundColor='teal'></StatusBar>
       <Modal visible={modalVisible} animationType="slide" transparent={false}>
       <View style={styles.modalContainer}>
       <TextInput
@@ -137,21 +142,21 @@ export default function Income() {
       <TouchableOpacity color={'orange'} style={styles.calendarButton} title="Lisää kulu" >
         <Icon name='calendar' color='orange' size={45}  onPress={handleStatsModalVisible}></Icon>
       </TouchableOpacity>
-      <TouchableOpacity color={'orange'} style={styles.expenseButton} title="Lisää kulu" onPress={handleAddIncomeClick} >
+      <TouchableOpacity color={'orange'} style={styles.expenseButton} title="Lisää kulu" onPress={handleAddExpenseClick} >
         <Icon name='plus-circle' color='orange' size={60}></Icon>
       </TouchableOpacity>
       <TouchableOpacity color={'orange'} style={styles.navigateButton} title="Lisää kulu" >
         <Icon name='bar-chart-o' color='orange' size={45}  onPress={handleStatsModalVisible}></Icon>
       </TouchableOpacity>
       </View>
-      <Modal visible={incomeModalVisible} animationType="slide" transparent={false}>
+      <Modal visible={expenseModalVisible} animationType="slide" transparent={false}>
         <View style={styles.modalContainer2}>
           <View style={styles.addExpense}>
             <TextInput style={styles.expenseInput}
-              placeholder="Lisää tulo"
+              placeholder="Lisää kulu"
               keyboardType="numeric"
-              value={income}
-              onChangeText={(text) => setIncome(text)}
+              value={expense}
+              onChangeText={(text) => setExpense(text)}
             />
             <TextInput style={styles.expenseInput}
               placeholder="Lisää kuvaus"
@@ -167,10 +172,10 @@ export default function Income() {
             />
           </View>
           <View style={styles.Modal2Buttons}>
-          <TouchableOpacity style={styles.editButton2} onPress={addIncome}>
+          <TouchableOpacity style={styles.editButton2} onPress={addExpense}>
             <Icon name="check" size={40} color="orange" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.editButton2} title="" onPress={closeIncomeModalVisible} >
+          <TouchableOpacity style={styles.editButton2} title="" onPress={closeExpenseModalVisible} >
             <Icon name="close" size={40} color="orange" /> 
           </TouchableOpacity>
           </View>
@@ -180,7 +185,7 @@ export default function Income() {
         {categories.map((cat) => (
           <TouchableOpacity 
             key={cat.key}
-            onPress={() => {setSelectedCategory(cat); handleAddIncomesClick();}}
+            onPress={() => {setSelectedCategory(cat); handleAddExpensesClick();}}
             style={styles.categoryButton}
           >
             <View style={styles.dataDetails} >
@@ -192,28 +197,28 @@ export default function Income() {
           </TouchableOpacity>
         ))}
       </View>
-      <Modal visible={incomesModalVisible} animationType="slide" transparent={false} onBackdropPress={() => incomeModalVisible(false)}>
+      <Modal visible={expensesModalVisible} animationType="slide" transparent={false} onBackdropPress={() => expenseModalVisible(false)}>
         <View style={styles.modalContainer3}>
           {selectedCategory && (
           <Icon style={{marginBottom: 25}} name={selectedCategory.icon} color={'white'} size={50}></Icon>
           )}
           {selectedCategory && (
           <FlatList 
-            data={selectedCategory.incomes}
+            data={selectedCategory.expenses}
             keyExtractor={(item, index) => index.toString()}
             renderItem={({item}) => (
               <View style={styles.flatlistData}>
-                <Text style={{color: 'black', fontSize: 30, width:350, fontWeight:'bold'}}>
-                  {item.amount}€ {item.description}
+                <Text style={{color: 'orange', fontSize: 30, width:350, fontWeight: 'bold'}}>
+                  {item.amount}€
                 </Text>
                 <Text style={{color: 'black', fontSize: 25, width:350}}>
-                  {item.amount}€ {item.description}
+                  {item.description}
                 </Text>
               </View>
             )}>
           </FlatList>
           )}
-          <TouchableOpacity style={styles.editButton3} title="" onPress={closeIncomesModalVisible} >
+          <TouchableOpacity style={styles.editButton3} title="" onPress={closeExpensesModalVisible} >
             <Icon name="close" size={55} color="orange" /> 
           </TouchableOpacity>
         </View>
@@ -243,7 +248,7 @@ export default function Income() {
           </TouchableOpacity>
         </View>
       </Modal>
-      <View style={styles.totalIncomeData}>
+      <View style={styles.totalExpenseData}>
                
       </View>
      </ScrollView>
@@ -392,6 +397,7 @@ elevation: 4,
   },
   navigateButton:{
     margin: 5,
+    padding:5 ,
     marginBottom: 5,
     width: 100,
     borderWidth: 0,
