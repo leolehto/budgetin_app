@@ -3,6 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Expense from "./components/Expense";
 import Income from "./components/Income";
 import { BudgetProvider } from './components/BudgetContext';
+import { CalendarProvider } from './components/CalendarContext'
 import Icon from 'react-native-vector-icons/FontAwesome/';
 
 const Tab = createBottomTabNavigator();
@@ -26,13 +27,15 @@ export default function App() {
       
   });
   return (
-    <BudgetProvider>
+  <BudgetProvider>
+    <CalendarProvider>
     <NavigationContainer>
       <Tab.Navigator screenOptions={screenOptions} >
         <Tab.Screen name="Expenses" component={Expense} />
         <Tab.Screen name="Incomes" component={Income}/>
       </Tab.Navigator>
     </NavigationContainer>
-    </BudgetProvider>
+    </CalendarProvider>
+  </BudgetProvider>
   );
 }

@@ -5,6 +5,20 @@ import { SelectList } from 'react-native-dropdown-select-list';
 import Icon from 'react-native-vector-icons/FontAwesome/';
 import { PieChart } from 'react-native-chart-kit';
 import { useBudget } from './BudgetContext';
+import { initializeApp } from "firebase/app";
+import {getDatabase, push, update, ref, onValue, remove, set} from "firebase/database"
+
+const firebaseConfig = {
+  apiKey: "AIzaSyD9v0yEX56WUmxTX7-B3yC0QmzcHwiBghc",
+  authDomain: "budgetin-app-ca711.firebaseapp.com",
+  databaseURL: "https://budgetin-app-ca711-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "budgetin-app-ca711",
+  storageBucket: "budgetin-app-ca711.appspot.com",
+  messagingSenderId: "352476025044",
+  appId: "1:352476025044:web:0f9fdca8d447b9292d2b41"
+};
+const app = initializeApp(firebaseConfig);
+const database = getDatabase(app)
 
 export default function Expense() {
   const [editing, setEditing] = useState(false);
@@ -18,8 +32,26 @@ export default function Expense() {
   const [expensesModalVisible, setExpensesModalVisible] = useState(false)
   const [statsModalVisible, setStatsModalVisible] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState(null);
+  const {budget, updateBudget} = useBudget();
   
-  
+  useEffect(() => {
+    const itemsRef = ref(database, 'finances/');
+    onValue(itemsRef, (snapshot) => {
+      const data = snapshot.val();
+      const keys = Object.keys(data);
+      if (data && typeof data === 'object') {
+        const dataWithKeys = Object.values(data).map((obj, index) => {
+          return {...obj, key: keys[index]}
+        });
+        setExpenses(dataWithKeys)
+      } else {
+        console.error();
+      }
+    })
+  }, [])
+  const deleteFinances = (key) => {
+    remove(ref(database, `finances/${key}`))
+  }
   const handleEditClick = () => {
     setModalVisible(true);
   };
@@ -49,9 +81,10 @@ export default function Expense() {
   const closeStatsModalVisible = () => {
     setStatsModalVisible(false)
   }
-  const {budget, updateBudget} = useBudget();
+ 
+
   const handleSaveClick = () => {
-    const newBudget = parseInt(budget);
+    const newBudget = parseFloat(budget);
     if (!isNaN(newBudget) && newBudget >= 0) {
       updateBudget(newBudget);
       setEditing(false);
@@ -60,13 +93,14 @@ export default function Expense() {
     }
   };
   const addExpense = () => {
-    if (expense !== '' && category !== '' && description!= '' && parseInt(expense) > 0) {
-      const newExpense = {description, category, amount: parseInt(expense) };
-      updateBudget((prevBudget) => prevBudget - parseInt(expense));
+    if (expense !== '' && category !== '' && description!= '' && parseFloat(expense) > 0) {
+      const newExpense = {description, category, amount: parseFloat(expense), tag:'expense'};
+      updateBudget((prevBudget) => prevBudget - parseFloat(expense));
       setExpenses([...expenses, newExpense]);
       setExpense('');
       setDescription('');
       setExpenseModalVisible(false);
+      const newBudget1 = budget - parseFloat(expense);
       
       const updatedCategories = categories.map((cat) => {
         if (cat.value === category) {
@@ -75,6 +109,16 @@ export default function Expense() {
         return cat;
       });
       setCategories(updatedCategories);
+      push(ref(database, 'finances/'), newExpense)
+      
+      const budgetRef = ref(database, 'budget');
+      set(budgetRef, newBudget1)
+      .then(() => {
+        console.log("update succes")
+      })
+      .catch((error) => {
+        console.error(error)
+      })
     } 
   }
   useEffect(() => {
@@ -86,10 +130,10 @@ export default function Expense() {
   }, [expenses]);
 
   const [categories, setCategories] = useState([
-    { key: '1', value: 'Ostokset', expenses: [], icon: 'shopping-cart', color: 'red'},
-    { key: '2', value: 'Kuljetus', expenses: [], icon: 'bus', color: 'brown' },
-    { key: '3', value: 'Harrastukset', expenses: [], icon: 'futbol-o', color: 'purple' },
-    { key: '4', value: 'Koti', expenses: [], icon: 'home', color: 'gray' },
+    {key: '1', value: 'Ostokset', expenses: [], icon: 'shopping-cart', color: 'red'},
+    {key: '2', value: 'Kuljetus', expenses: [], icon: 'bus', color: 'brown' },
+    {key: '3', value: 'Harrastukset', expenses: [], icon: 'futbol-o', color: 'purple' },
+    {key: '4', value: 'Koti', expenses: [], icon: 'home', color: 'gray' },
     {key: '5', value: 'Kahvilat', expenses: [], icon: 'coffee', color: 'yellow'},
     {key: '6', value: 'Lemmikki', expenses: [], icon: 'paw', color: 'blue'},
     {key: '7', value: 'Sijoitukset', expenses: [], icon: 'money',color: 'green'},
@@ -116,9 +160,9 @@ export default function Expense() {
             value={budget !== 0 ? budget.toString() : ''}
             onChangeText={(text) => {
               if (text === '') {
-                updateBudget(0);
+                updateBudget(0.00);
               } else {
-                updateBudget(parseInt(text) || 0);
+                updateBudget(parseFloat(text) || 0);
               }
             }}
           />
@@ -202,9 +246,8 @@ export default function Expense() {
           {selectedCategory && (
           <Icon style={{marginBottom: 25}} name={selectedCategory.icon} color={'white'} size={50}></Icon>
           )}
-          {selectedCategory && (
           <FlatList 
-            data={selectedCategory.expenses}
+            data={selectedCategory ? expenses.filter(item => item.category === selectedCategory.value): []}
             keyExtractor={(item, index) => index.toString()}
             renderItem={({item}) => (
               <View style={styles.flatlistData}>
@@ -214,10 +257,12 @@ export default function Expense() {
                 <Text style={{color: 'black', fontSize: 25, width:350}}>
                   {item.description}
                 </Text>
+                <Text onPress={() => deleteFinances(item.key)}>
+                    <Icon name="trash-o" size={40} color="orange" />
+                </Text>
               </View>
             )}>
           </FlatList>
-          )}
           <TouchableOpacity style={styles.editButton3} title="" onPress={closeExpensesModalVisible} >
             <Icon name="close" size={55} color="orange" /> 
           </TouchableOpacity>
