@@ -10,8 +10,8 @@ const firebaseConfig = {
     messagingSenderId: "352476025044",
     appId: "1:352476025044:web:0f9fdca8d447b9292d2b41"
   };
-  const app = initializeApp(firebaseConfig);
-  const database = getDatabase(app)
+const app = initializeApp(firebaseConfig);
+const database = getDatabase(app)
 
 const BudgetContext = createContext();
 
@@ -27,7 +27,7 @@ export const BudgetProvider = ({children}) => {
         const budgetRef = ref(database, 'budget');
         onValue(budgetRef, (snapshot) => {
             const budgetData = snapshot.val();
-            setBudget(budgetData || 0);
+            setBudget(budgetData || 0.00);
         });
     }, []);
 

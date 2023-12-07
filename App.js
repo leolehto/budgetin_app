@@ -28,14 +28,12 @@ export default function App() {
   });
   return (
   <BudgetProvider>
-    <CalendarProvider>
     <NavigationContainer>
       <Tab.Navigator screenOptions={screenOptions} >
         <Tab.Screen name="Expenses" component={Expense} />
         <Tab.Screen name="Incomes" component={Income}/>
       </Tab.Navigator>
     </NavigationContainer>
-    </CalendarProvider>
   </BudgetProvider>
   );
 }

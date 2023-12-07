@@ -7,6 +7,8 @@ import { PieChart } from 'react-native-chart-kit';
 import { useBudget } from './BudgetContext';
 import { initializeApp } from "firebase/app";
 import {getDatabase, push,remove, ref, onValue, set} from "firebase/database"
+import CalendarPicker from 'react-native-calendar-picker';
+import moment from 'moment';
 
 const firebaseConfig = {
   apiKey: "AIzaSyD9v0yEX56WUmxTX7-B3yC0QmzcHwiBghc",
@@ -22,19 +24,37 @@ const database = getDatabase(app)
 
 export default function Income() {
   const [editing, setEditing] = useState(false);
-  const [income, setIncome] = useState("");
+  const [income, setIncome] = useState(0.0);
   const [incomes, setIncomes] = useState([]);
   const [description, setDescription] = useState("")
-  const [totalIncome, setTotalIncome] = useState(0);
+  const [totalIncome, setTotalIncome] = useState(0.0);
   const [category, setCategory] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
   const [incomeModalVisible, setIncomeModalVisible] = useState(false);
   const [incomesModalVisible, setIncomesModalVisible] = useState(false)
+  const [calendarModalVisible, setCalendarModalVisible] = useState(false)
+  const [calendarModalVisible1, setCalendarModalVisible1] = useState(false)
   const [statsModalVisible, setStatsModalVisible] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState(null);
 
+  const [selectedDate, setSelectedDate] = useState("");
+
+  const handleCalendarModalVisible1 = () => {
+    setCalendarModalVisible1(true)
+  }
+  const closeCalendarModalVisible1 = () => {
+    setCalendarModalVisible1(false)
+  }
+
+  const onDateChange = (date) => {
+    console.log(date)
+    const formattedDate = moment(date).format('DD/MM/YYYY');
+    setSelectedDate(formattedDate);
+    closeCalendarModalVisible1();
+  };
+
   useEffect(() => {
-    const itemsRef = ref(database, 'finances/');
+    const itemsRef = ref(database, 'incomes/');
     onValue(itemsRef, (snapshot) => {
       const data = snapshot.val();
       const keys = Object.keys(data);
@@ -48,9 +68,20 @@ export default function Income() {
       }
     })
   }, [])
-  const deleteFinances = (key) => {
-    remove(ref(database, `finances/${key}`))
-  }
+
+  useEffect(() => {
+    onValue(ref(database, 'totalIncome/'), (snapshot) => {
+      const data = snapshot.val();
+      const keys = Object.keys(data);
+      const totalIncomeData = Object.values(data).map((obj, index) => { 
+        return {...obj, key: keys[index] } 
+      });
+
+      setTotalIncome(totalIncomeData);
+    })
+  }, []);
+
+  
   
   const handleEditClick = () => {
     setModalVisible(true);
@@ -93,14 +124,14 @@ export default function Income() {
   };
 
   const addIncome = () => {
-    if (income !== '' && category !== '' && description!= '' && parseFloat(income) > 0) {
-      const newIncome = {description, category, amount: parseFloat(income), tag: 'income'};
+    if (income !== '' && category !== '' && description!= '' && parseFloat(income) > 0 && selectedDate) {
+      const newIncome = {description, category, amount: parseFloat(income), tag: 'income', date: selectedDate };
       updateBudget((prevBudget) => prevBudget + parseFloat(income));
       setIncomes([...incomes, newIncome]);
       setIncome('');
       setDescription('');
       setIncomeModalVisible(false);
-      const newBudget2 = budget + parseFloat(income)
+      const newBudget2 = budget + parseFloat(income);
       
       const updatedCategories = categories.map((cat) => {
         if (cat.value === category) {
@@ -110,8 +141,9 @@ export default function Income() {
       });
       
       setCategories(updatedCategories);
-      
-      push(ref(database, 'finances/'), newIncome)
+
+      set(ref(database, 'totalIncome/'),totalIncome + parseFloat(income));
+      push(ref(database, 'incomes/'), {...newIncome, date: selectedDate});
       
       const budgetRef = ref(database, 'budget');
       set(budgetRef, newBudget2)
@@ -123,6 +155,31 @@ export default function Income() {
       })
     } 
   }
+  const deleteIncome = (key) => {
+    const incomeRef = ref(database, `incomes/${key}`);
+    onValue(incomeRef, (snapshot) => {
+      const incomeData = snapshot.val();
+      
+    if(incomeData !== null){  
+      remove(expenseRef)
+      .then(() => {
+        const newTotalIncome = totalIncome - incomeData.amount;
+        const newBudget = budget + incomeData.amount; 
+      try{
+        set(ref(database, 'totalIncome/'), newTotalIncome);
+        set(ref(database, 'budget/'), newBudget);
+        setTotalIncome(newTotalIncome)
+        console.log("updated totalIncmoe: " , newTotalIncome)
+        console.log("updated budget:",  newBudget)
+        console.log("Expense deleted and totalExpense updated successfully.");
+      }catch(error){
+        console.error("Error updating totalExpense:", error)
+      }
+      })
+    }});
+  };
+
+  
 
   useEffect(() => {
     let total = 0;
@@ -140,11 +197,14 @@ export default function Income() {
   
     // Add more categories as needed
   ]);
-  const statData = categories.map(category => ({
-    name: category.value,
-    population: category.incomes.reduce((total, income) => total + income.amount, 0),
-    color: category.color
-  }))
+  const statData = categories.map(category => {
+    const incomesData = incomes.filter(item => item.category === category.value);
+    return {
+      name: category.value,
+      population: incomesData.reduce((total, income) => total + income.amount, 0),
+      color: category.color
+    };
+  });
    
   return (
     
@@ -155,12 +215,12 @@ export default function Income() {
       <TextInput
             style={styles.inputFieldBudget}
             keyboardType="numeric"
-            value={budget !== 0 ? budget.toString() : ''}
+            value={budget}
             onChangeText={(text) => {
               if (text === '') {
                 updateBudget(0);
               } else {
-                updateBudget(parseFloat(text) || 0);
+                updateBudget(parseFloat(text) || 0.0);
               }
             }}
           />
@@ -212,6 +272,14 @@ export default function Income() {
               placeholder='Kategoria'
               boxStyles={{ borderRadius: 50, width: 200, marginLeft: 5, borderColor: 'orange' }}
             />
+            <Text>
+            <Icon name='calendar' color='orange' size={25}  onPress={handleCalendarModalVisible1} ></Icon>
+            </Text>
+            <Modal visible={calendarModalVisible1} animationType='slide' transparent={false} onPress={handleCalendarModalVisible1} >
+            <CalendarPicker
+              onDateChange={onDateChange}
+          /> 
+          </Modal>
           </View>
           <View style={styles.Modal2Buttons}>
           <TouchableOpacity style={styles.editButton2} onPress={addIncome}>
@@ -249,11 +317,14 @@ export default function Income() {
             keyExtractor={(item, index) => index.toString()}
             renderItem={({item}) => (
               <View style={styles.flatlistData}>
+                <Text onPress={() => deleteIncome(item.key)} style={{color: 'orange', fontSize: 30, width:350, fontWeight: 'bold'}}>
+                  {item.date}                 <Icon name="trash-o" size={40} color="orange" />
+                </Text>
                 <Text style={{color: 'orange', fontSize: 30, width:350, fontWeight: 'bold'}}>
                   {item.amount}€
                 </Text>
                 <Text style={{color: 'black', fontSize: 25, width:350}} onPress={() => deleteFinances(item.key)}>
-                  {item.description} <Icon name="trash-o" size={40} color="orange" />
+                  {item.description} 
                 </Text>
               </View>
             )}>
@@ -289,7 +360,7 @@ export default function Income() {
         </View>
       </Modal>
       <View style={styles.totalIncomeData}>
-               
+            <Text style={{fontSize: 50, color: 'orange'}}>{totalIncome} €</Text>
       </View>
      </ScrollView>
     </View>
@@ -544,16 +615,7 @@ elevation: 4,
     padding: 8,
     
   },
-  totalExpenseData:{
-    flex: 3, 
-    margin: 20,
-    width: '90%',
-    //height: 100,
-    justifyContent: 'center',
-    alignItems: 'center', 
-    borderRadius: 100,
-    backgroundColor: 'white',
-  },
+  
   PieChart: {
     width: '90%',
     height: '70%',
@@ -564,5 +626,15 @@ elevation: 4,
     borderWidth: 0,
     borderRadius: 50,
     alignItems: 'center'
-  }
+  },
+  totalIncomeData:{
+    marginLeft: 100,
+    width: '50%',
+    justifyContent: 'center',
+    alignItems: 'center', 
+    borderRadius: 90,
+    height: 100,
+    backgroundColor: 'teal',
+    borderWidth: 1
+  },
 })
