@@ -382,10 +382,10 @@ export default function Expense() {
           <View style={styles.PieChart}>
           <PieChart
             data={statData}
-            width={350}
-            height={259}
+            width={400}
+            height={300}
             backgroundColor={'transparent'}
-            paddingLeft={'18'}
+            paddingLeft={'50'}
             borderWidth={2}
             borderColor={'black'}
             chartConfig={{
@@ -394,7 +394,8 @@ export default function Expense() {
               color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
             }}
             accessor="population"
-            absolute
+            
+            
            />
       </View>
           <TouchableOpacity style={styles.editButton3} title="" onPress={closeStatsModalVisible} >
@@ -680,7 +681,7 @@ elevation: 4,
     backgroundColor: 'white',
   },
   PieChart: {
-    width: '90%',
+    width: 400,
     height: '70%',
     marginLeft: 100,
     marginTop: 0,

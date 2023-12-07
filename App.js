@@ -2,6 +2,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Expense from "./components/Expense";
 import Income from "./components/Income";
+import Stats from './components/Stats';
 import { BudgetProvider } from './components/BudgetContext';
 import { CalendarProvider } from './components/CalendarContext'
 import Icon from 'react-native-vector-icons/FontAwesome/';
@@ -16,6 +17,8 @@ export default function App() {
         iconName = 'credit-card-alt';
       } else if (route.name === 'Incomes') {
         iconName = 'bank';
+      }else if (route.name === 'Stats'){
+        iconName = 'bar-chart'
       }
   
       return <Icon name={iconName} size={30} color={'orange'} />;
@@ -31,6 +34,7 @@ export default function App() {
     <NavigationContainer>
       <Tab.Navigator screenOptions={screenOptions} >
         <Tab.Screen name="Expenses" component={Expense} />
+        <Tab.Screen name='Stats' component={Stats}/>
         <Tab.Screen name="Incomes" component={Income}/>
       </Tab.Navigator>
     </NavigationContainer>

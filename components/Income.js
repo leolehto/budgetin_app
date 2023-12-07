@@ -351,7 +351,7 @@ export default function Income() {
               color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
             }}
             accessor="population"
-            absolute
+            //absolute
            />
       </View>
           <TouchableOpacity style={styles.editButton3} title="" onPress={closeStatsModalVisible} >
