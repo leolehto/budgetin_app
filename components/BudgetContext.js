@@ -34,7 +34,7 @@ export const BudgetProvider = ({children}) => {
     const updateBudget = (newBudget) => {
         setBudget(newBudget)
         if (typeof newBudget !== 'number' || isNaN(newBudget)){
-            console.error('Invalid budget value:', newBudget)
+            //console.error('Invalid budget value:', newBudget)
             return;
         }
         const budgetRef = ref(database, 'budget');

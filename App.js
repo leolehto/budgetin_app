@@ -10,21 +10,21 @@ import Icon from 'react-native-vector-icons/FontAwesome/';
 const Tab = createBottomTabNavigator();
 export default function App() {
   const screenOptions = ({ route }) => ({
-    tabBarIcon: ({ focused, color, size }) => {
+    tabBarIcon: ({}) => {
       let iconName;
   
-      if (route.name === 'Expenses') {
+      if (route.name === 'Menot') {
         iconName = 'credit-card-alt';
-      } else if (route.name === 'Incomes') {
+      } else if (route.name === 'Tulot') {
         iconName = 'bank';
       }else if (route.name === 'Stats'){
         iconName = 'bar-chart'
       }
   
-      return <Icon name={iconName} size={30} color={'orange'} />;
+      return <Icon name={iconName} size={35} color={'orange'} />;
     },
     tabBarStyle:{
-      backgroundColor: 'teal',
+      backgroundColor: 'white',
       borderRadius: 1
     }
       
@@ -33,9 +33,9 @@ export default function App() {
   <BudgetProvider>
     <NavigationContainer>
       <Tab.Navigator screenOptions={screenOptions} >
-        <Tab.Screen name="Expenses" component={Expense} />
+        <Tab.Screen name="Menot" component={Expense} />
         <Tab.Screen name='Stats' component={Stats}/>
-        <Tab.Screen name="Incomes" component={Income}/>
+        <Tab.Screen name="Tulot" component={Income}/>
       </Tab.Navigator>
     </NavigationContainer>
   </BudgetProvider>

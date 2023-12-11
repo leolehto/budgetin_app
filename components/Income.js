@@ -6,7 +6,7 @@ import Icon from 'react-native-vector-icons/FontAwesome/';
 import { PieChart } from 'react-native-chart-kit';
 import { useBudget } from './BudgetContext';
 import { initializeApp } from "firebase/app";
-import {getDatabase, push,remove, ref, onValue, set} from "firebase/database"
+import {getDatabase, push,remove, ref, onValue, set, query, orderByChild, startAt,endAt} from "firebase/database"
 import CalendarPicker from 'react-native-calendar-picker';
 import moment from 'moment';
 
@@ -36,19 +36,65 @@ export default function Income() {
   const [calendarModalVisible1, setCalendarModalVisible1] = useState(false)
   const [statsModalVisible, setStatsModalVisible] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState(null);
-
-  const [selectedDate, setSelectedDate] = useState("");
-
+  const [statData, setStatData] = useState([]);
+  
   const handleCalendarModalVisible1 = () => {
     setCalendarModalVisible1(true)
   }
   const closeCalendarModalVisible1 = () => {
     setCalendarModalVisible1(false)
   }
+  const [selectedDate, setSelectedDate] = useState("");
+  const [startDate, setStartDate] = useState(new Date());
+  const [endDate, setEndDate] = useState('');
+  const firstDayOfMonth = moment().startOf('month').format('YYYY-MM-DD');
+  const lastDayOfMonth = moment().endOf('month').format('YYYY-MM-DD');
+
+  const onDateClick = (date, type) => {
+    if (type === 'END_DATE') {
+      setEndDate(date);
+    } else {
+      setStartDate(date);
+      setEndDate(date);
+    }
+  };
+
+  useEffect(() => {
+    if (startDate && endDate) {
+      const incomesRef = ref(database, 'incomes/');
+      const formatStart = moment(startDate).format('YYYY-MM-DD');
+      const formatEnd = moment(endDate).format('YYYY-MM-DD');
+
+      const incomesQuery = query(
+        incomesRef,
+        orderByChild('date'),
+        startAt(formatStart),
+        endAt(formatEnd)
+      );
+
+      onValue(incomesQuery, (snapshot) => {
+        const incomesData = snapshot.val();
+        const incomesArray = Object.values(incomesData || []);
+
+        const pieChartData = categories.map(category => {
+          const incomeData = incomesArray.filter(item => item.category === category.value);
+          console.log(incomeData)
+          return {
+            name: category.value + ' (€)',
+            population: incomeData.reduce((total, income) => total + income.amount, 0),
+            color: category.color
+          };
+        });
+
+        setStatData(pieChartData);
+        console.log(pieChartData);
+      });
+    }
+  }, [startDate, endDate, categories]);
 
   const onDateChange = (date) => {
     console.log(date)
-    const formattedDate = moment(date).format('DD/MM/YYYY');
+    const formattedDate = moment(date).format('YYYY-MM-DD');
     setSelectedDate(formattedDate);
     closeCalendarModalVisible1();
   };
@@ -108,9 +154,13 @@ export default function Income() {
 
   const handleStatsModalVisible = () => {
     setStatsModalVisible(true)
+    setStartDate(firstDayOfMonth);
+    setEndDate(lastDayOfMonth);
   }
   const closeStatsModalVisible = () => {
     setStatsModalVisible(false)
+    setStartDate(firstDayOfMonth);
+    setEndDate(lastDayOfMonth);
   }
   const {budget, updateBudget} = useBudget();
   
@@ -161,19 +211,19 @@ export default function Income() {
       const incomeData = snapshot.val();
       
     if(incomeData !== null){  
-      remove(expenseRef)
+      remove(incomeRef)
       .then(() => {
         const newTotalIncome = totalIncome - incomeData.amount;
-        const newBudget = budget + incomeData.amount; 
+        const newBudget = budget - incomeData.amount; 
       try{
         set(ref(database, 'totalIncome/'), newTotalIncome);
         set(ref(database, 'budget/'), newBudget);
         setTotalIncome(newTotalIncome)
         console.log("updated totalIncmoe: " , newTotalIncome)
         console.log("updated budget:",  newBudget)
-        console.log("Expense deleted and totalExpense updated successfully.");
+        console.log("Income deleted and totalIncome updated successfully.");
       }catch(error){
-        console.error("Error updating totalExpense:", error)
+        console.error("Error updating totalIncome:", error)
       }
       })
     }});
@@ -190,21 +240,14 @@ export default function Income() {
   }, [incomes]);
 
   const [categories, setCategories] = useState([
-    { key: '1', value: 'Palkka', incomes: [], icon: 'euro', color: 'red'},
-    { key: '2', value: 'Lahja', incomes: [], icon: 'gift', color: 'brown' },
-    { key: '3', value: 'Muut', incomes: [], icon: 'question', color: 'purple' },
-    { key: '4', value: 'Kumppani', incomes: [], icon: 'user', color: 'gray' },
+    { key: '1', value: 'Palkka', incomes: [], icon: 'euro', color: '#E57373'},
+    { key: '2', value: 'Lahja', incomes: [], icon: 'gift', color: '#7986CB' },
+    { key: '3', value: 'Muut', incomes: [], icon: 'question', color: '#9575CD' },
+    { key: '4', value: 'Kumppani', incomes: [], icon: 'user', color: '#FFF176' },
   
     // Add more categories as needed
   ]);
-  const statData = categories.map(category => {
-    const incomesData = incomes.filter(item => item.category === category.value);
-    return {
-      name: category.value,
-      population: incomesData.reduce((total, income) => total + income.amount, 0),
-      color: category.color
-    };
-  });
+  
    
   return (
     
@@ -241,14 +284,11 @@ export default function Income() {
         </TouchableOpacity>
       </View>
       <View style={styles.container2}>
-      <TouchableOpacity color={'orange'} style={styles.calendarButton} title="Lisää kulu" >
-        <Icon name='calendar' color='orange' size={45}  onPress={handleStatsModalVisible}></Icon>
-      </TouchableOpacity>
       <TouchableOpacity color={'orange'} style={styles.expenseButton} title="Lisää kulu" onPress={handleAddIncomeClick} >
         <Icon name='plus-circle' color='orange' size={60}></Icon>
       </TouchableOpacity>
       <TouchableOpacity color={'orange'} style={styles.navigateButton} title="Lisää kulu" >
-        <Icon name='bar-chart-o' color='orange' size={45}  onPress={handleStatsModalVisible}></Icon>
+        <Icon name='pie-chart' color='orange' size={60}  onPress={handleStatsModalVisible}></Icon>
       </TouchableOpacity>
       </View>
       <Modal visible={incomeModalVisible} animationType="slide" transparent={false}>
@@ -272,13 +312,16 @@ export default function Income() {
               placeholder='Kategoria'
               boxStyles={{ borderRadius: 50, width: 200, marginLeft: 5, borderColor: 'orange' }}
             />
-            <Text>
-            <Icon name='calendar' color='orange' size={25}  onPress={handleCalendarModalVisible1} ></Icon>
+            <Text style={{marginTop: 10}}>
+            <Icon name='calendar' color='orange' size={35}  onPress={handleCalendarModalVisible1} ></Icon>
             </Text>
             <Modal visible={calendarModalVisible1} animationType='slide' transparent={false} onPress={handleCalendarModalVisible1} >
             <CalendarPicker
               onDateChange={onDateChange}
           /> 
+          <Text onPress={closeCalendarModalVisible1} style={{marginLeft: 170}}>
+            <Icon name='close' color='orange' size={50} ></Icon>
+          </Text>
           </Modal>
           </View>
           <View style={styles.Modal2Buttons}>
@@ -351,16 +394,31 @@ export default function Income() {
               color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
             }}
             accessor="population"
-            //absolute
+            absolute
            />
       </View>
+        <View>
+          <CalendarPicker
+           //months={['Tammikuu', 'Helmikuu', 'Maaliskuu', 'Huhtikuu', 'Toukokuu', 'Kesäkuu', 'Heinäkuu', 'Elokuu', 'Syyskuu', 'Lokakuu', 'Marraskuu', 'Joulukuu']}
+            selectedStartDate={startDate}
+            selectedEndDate={endDate}
+            onDateChange={onDateClick}
+            allowRangeSelection={true}
+            resetSelections={true}
+            todayBackgroundColor='orange'
+            selectedDayColor='teal'
+              > 
+          </CalendarPicker>
+          </View>
           <TouchableOpacity style={styles.editButton3} title="" onPress={closeStatsModalVisible} >
             <Icon name="close" size={55} color="orange" /> 
           </TouchableOpacity>
         </View>
       </Modal>
       <View style={styles.totalIncomeData}>
-            <Text style={{fontSize: 50, color: 'orange'}}>{totalIncome} €</Text>
+        <View style={{alignContent: 'center' , margin: 10}}>
+          <Text style={styles.totalIncome}>{totalIncome}€</Text>
+        </View>
       </View>
      </ScrollView>
     </View>
@@ -413,7 +471,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'teal',
     width: '70%',
-    height: '70%',
+    height: '74.5%',
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
@@ -459,15 +517,16 @@ const styles = StyleSheet.create({
   },
   container2: {
     padding:1,
-    margin: 20,
+    marginLeft: 60,
+    marginTop: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    width: '90%',
+    width: '70%',
     backgroundColor: 'teal',
     flexDirection: 'row',
     marginBottom: 5,
     borderWidth: 0.3,
-    borderRadius: 30,
+    borderRadius: 50,
     borderColor: 'white',
     shadowColor: "#000",
     shadowOffset: {
@@ -596,6 +655,7 @@ elevation: 4,
   modalContainer3: {
     margin:0,
     borderRadius: 20,
+    borderWidth: 0,
     padding: 35,
     alignItems: 'center',
     shadowColor: 'black',
@@ -617,24 +677,52 @@ elevation: 4,
   },
   
   PieChart: {
-    width: '90%',
-    height: '70%',
-    marginLeft: 100,
+    width: 400,
+    height: '40%',
+    backgroundColor: 'white',
+    marginLeft: 108,
     marginTop: 0,
-    marginRight: 100 ,
-    borderColor: 'black',
-    borderWidth: 0,
+    marginRight: 110 ,
+    borderColor: 'teal',
+    borderWidth: 0.3,
     borderRadius: 50,
-    alignItems: 'center'
+    alignItems: 'center',
+    shadowColor: "teal",
+    shadowOffset: {
+	  width: 0,
+	  height: 1,
+},
+shadowOpacity: 1,
+shadowRadius: 1,
+
+elevation: 2,
   },
   totalIncomeData:{
-    marginLeft: 100,
-    width: '50%',
+    flex: 3, 
+    marginLeft: 65,
+    marginTop: 20,
+    marginBottom: 0,
+    marginRight: 10,
+    backgroundColor: 'teal',
+    width: '70%',
+    //height: 100,
     justifyContent: 'center',
     alignItems: 'center', 
-    borderRadius: 90,
-    height: 100,
+    borderRadius: 100,
+    flexDirection: 'row',
+    borderWidth: 0,
+    alignContent: 'space-between',
+  },
+  totalIncome:{
+    borderWidth: 0,
+    paddingRight: 10,
+    margin: 5,
+    textAlign: 'center',
+    alignContent: 'center',
+    fontSize: 55,
     backgroundColor: 'teal',
-    borderWidth: 1
+    color: 'orange',
+    borderRadius: 50,
+
   },
 })

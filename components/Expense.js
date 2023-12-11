@@ -3,12 +3,12 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, FlatList, StyleSheet, TouchableOpacity, Modal, ScrollView,} from 'react-native';
 import { SelectList } from 'react-native-dropdown-select-list';
 import Icon from 'react-native-vector-icons/FontAwesome/';
-import { PieChart } from 'react-native-chart-kit';
+import { PieChart} from 'react-native-chart-kit';
 import { useBudget } from './BudgetContext';
 import { initializeApp } from "firebase/app";
-import {getDatabase, push, ref, onValue, remove, set, query, orderByChild, equalTo} from "firebase/database"
+import {getDatabase, push, ref, onValue, remove, set, query, orderByChild, equalTo, startAt,endAt} from "firebase/database"
 import CalendarPicker from 'react-native-calendar-picker';
-import moment from 'moment';
+import moment, { months } from 'moment';
 
 
 //firebase Configuration
@@ -35,10 +35,10 @@ export default function Expense() {
   const [expenseModalVisible, setExpenseModalVisible] = useState(false);
   const [expensesModalVisible, setExpensesModalVisible] = useState(false)
   const [statsModalVisible, setStatsModalVisible] = useState(false)
-  const [calendarModalVisible, setCalendarModalVisible] = useState(false)
   const [calendarModalVisible1, setCalendarModalVisible1] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState(null);
   const {budget, updateBudget} = useBudget();
+  const [statData, setStatData] = useState([]);
 
   const handleCalendarModalVisible1 = () => {
     setCalendarModalVisible1(true)
@@ -47,39 +47,61 @@ export default function Expense() {
     setCalendarModalVisible1(false)
   }
 
-  const [selectedDate, setSelectedDate] = useState("");
+  const [selectedDate, setSelectedDate] = useState('');
+  const [startDate, setStartDate] = useState(new Date());
+  const [endDate, setEndDate] = useState('');
+  const firstDayOfMonth = moment().startOf('month').format('YYYY-MM-DD');
+  const lastDayOfMonth = moment().endOf('month').format('YYYY-MM-DD');
+
+  const onDateClick = (date, type) => {
+    if (type === 'END_DATE') {
+      setEndDate(date);
+    } else {
+      setStartDate(date);
+      setEndDate(date);
+    }
+  };
+
+  useEffect(() => {
+    if (startDate && endDate) {
+      const expensesRef = ref(database, 'expenses');
+      const formatStart = moment(startDate).format('YYYY-MM-DD');
+      const formatEnd = moment(endDate).format('YYYY-MM-DD');
+
+      const expensesQuery = query(
+        expensesRef,
+        orderByChild('date'),
+        startAt(formatStart),
+        endAt(formatEnd)
+      );
+
+      onValue(expensesQuery, (snapshot) => {
+        const expensesData = snapshot.val();
+        const expensesArray = Object.values(expensesData || []);
+
+        const pieChartData = categories.map(category => {
+          const expenseData = expensesArray.filter(item => item.category === category.value);
+          return {
+            name: category.value + ' (€)',
+            population: expenseData.reduce((total, expense) => total + expense.amount, 0),
+            color: category.color
+          };
+        });
+
+        setStatData(pieChartData);
+        //console.log(pieChartData);
+      });
+    }
+  }, [startDate, endDate, categories]);
   
   const onDateChange = (date) => {
     console.log(date)
-    const formattedDate = moment(date).format('DD/MM/YYYY');
+    const formattedDate = moment(date).format('YYYY-MM-DD');
     setSelectedDate(formattedDate);
     closeCalendarModalVisible1();
   };
-  const onDatePress = (date) => {
-    setSelectedDate(date);
-    closeCalendarModalVisible();
-  
-    const expensesRef = ref(database, 'expenses');
-  
-    const formattedDate = moment(date).format('DD/MM/YYYY');
 
-    const expensesQuery = query(
-      expensesRef,
-      orderByChild('date'),
-      equalTo(formattedDate)
-    );
-  
-    // Fetch the expenses with the selected date
-    onValue(expensesQuery, (snapshot) => {
-      const expensesData = snapshot.val();
-      console.log('Expenses with selected date:', expensesData);
-      const expensesArray = Object.values(expensesData);
-      setTotalExpense(expensesArray)
-    });
-  };
 
-  
-  
   //fetch data from expenses collection in firebase
   useEffect(() => {
     const itemsRef = ref(database, 'expenses/');
@@ -138,18 +160,16 @@ export default function Expense() {
   }
 
   const handleStatsModalVisible = () => {
-    setStatsModalVisible(true)
+    setStatsModalVisible(true);
+    setStartDate(firstDayOfMonth);
+    setEndDate(lastDayOfMonth);
   }
   const closeStatsModalVisible = () => {
-    setStatsModalVisible(false)
+    setStatsModalVisible(false);
+    setStartDate(firstDayOfMonth);
+    setEndDate(lastDayOfMonth);
   }
-  const handleCalendarModalVisible = () => {
-    setCalendarModalVisible(true)
-  }
-  const closeCalendarModalVisible = () => {
-    setCalendarModalVisible(false)
-  }
- 
+  
   //update budget
   const handleSaveClick = () => {
     const newBudget = parseFloat(budget);
@@ -225,28 +245,23 @@ export default function Expense() {
       total += item.amount;
     });
     setTotalExpense(total);
+    //console.log(totalExpense)
   }, [expenses]);
+
   //categories including expenses, more can be added
   const [categories, setCategories] = useState([
-    {key: '1', value: 'Ostokset', expenses: [], icon: 'shopping-cart', color: 'red'},
-    {key: '2', value: 'Kuljetus', expenses: [], icon: 'bus', color: 'teal' },
-    {key: '3', value: 'Harrastukset', expenses: [], icon: 'futbol-o', color: 'purple' },
-    {key: '4', value: 'Koti', expenses: [], icon: 'home', color: 'gray' },
-    {key: '5', value: 'Kahvilat', expenses: [], icon: 'coffee', color: 'yellow'},
-    {key: '6', value: 'Lemmikki', expenses: [], icon: 'paw', color: 'blue'},
-    {key: '7', value: 'Sijoitukset', expenses: [], icon: 'money',color: 'green'},
-    {key: '8', value: 'Autoilu', expenses: [], icon: 'car',color: 'pink'},
-    {key: '9', value: 'Muut', expenses: [], icon: 'question',color: 'magenta'}
+    {key: '1', value: 'Ostokset', expenses: [], icon: 'shopping-cart', color: '#F44336'},
+    {key: '2', value: 'Kuljetus', expenses: [], icon: 'bus', color: '#9C27B0' },
+    {key: '3', value: 'Harrastukset', expenses: [], icon: 'futbol-o', color: '#3F51B5' },
+    {key: '4', value: 'Koti', expenses: [], icon: 'home', color: '#2196F3' },
+    {key: '5', value: 'Kahvilat', expenses: [], icon: 'coffee', color: '#795548'},
+    {key: '6', value: 'Lemmikki', expenses: [], icon: 'paw', color: '#FF9800'},
+    {key: '7', value: 'Sijoitukset', expenses: [], icon: 'money',color: '#8BC34A'},
+    {key: '8', value: 'Autoilu', expenses: [], icon: 'car',color: '#607D8B'},
+    {key: '9', value: 'Muut', expenses: [], icon: 'question',color: '#E91E63'}
   ]);
 
-  const statData = categories.map(category => {
-    const expensesData = expenses.filter(item => item.category === category.value);
-    return {
-      name: category.value,
-      population: expensesData.reduce((total, expense) => total + expense.amount, 0),
-      color: category.color
-    };
-  });
+ 
 
   return (
     
@@ -284,14 +299,11 @@ export default function Expense() {
         </TouchableOpacity>
       </View>
       <View style={styles.container2}>
-      <TouchableOpacity color={'orange'} style={styles.calendarButton} title="Lisää kulu" >
-        <Icon name='calendar' color='orange' size={45}  onPress={handleCalendarModalVisible}></Icon>
-      </TouchableOpacity>
       <TouchableOpacity color={'orange'} style={styles.expenseButton} title="Lisää kulu" onPress={handleAddExpenseClick} >
         <Icon name='plus-circle' color='orange' size={60}></Icon>
       </TouchableOpacity>
       <TouchableOpacity color={'orange'} style={styles.navigateButton} title="Lisää kulu" >
-        <Icon name='bar-chart-o' color='orange' size={45}  onPress={handleStatsModalVisible}></Icon>
+        <Icon name='pie-chart' color='orange' size={60}  onPress={handleStatsModalVisible}></Icon>
       </TouchableOpacity>
       </View>
       <Modal visible={expenseModalVisible} animationType="slide" transparent={false}>
@@ -315,13 +327,17 @@ export default function Expense() {
               placeholder='Kategoria'
               boxStyles={{ borderRadius: 50, width: 200, marginLeft: 5, borderColor: 'orange' }}
             />
-            <Text>
-              <Icon name='calendar' color='orange' size={25}  onPress={handleCalendarModalVisible1} ></Icon>
+            <Text style={{marginTop: 10}}>
+              <Icon name='calendar' color='orange' size={35}  onPress={handleCalendarModalVisible1} ></Icon>
             </Text>
           <Modal visible={calendarModalVisible1} animationType='slide' transparent={false} onPress={handleCalendarModalVisible1} >
             <CalendarPicker
               onDateChange={onDateChange}
+              selectedDayColor='teal'
           /> 
+          <Text onPress={closeCalendarModalVisible1} style={{marginLeft: 10}}>
+            <Icon name='close' color='orange' size={50} ></Icon>
+          </Text>
           </Modal>
           </View>
           <View style={styles.Modal2Buttons}>
@@ -382,10 +398,10 @@ export default function Expense() {
           <View style={styles.PieChart}>
           <PieChart
             data={statData}
-            width={400}
-            height={300}
+            width={410}
+            height={275}
             backgroundColor={'transparent'}
-            paddingLeft={'50'}
+            paddingLeft={'15'}
             borderWidth={2}
             borderColor={'black'}
             chartConfig={{
@@ -394,28 +410,35 @@ export default function Expense() {
               color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
             }}
             accessor="population"
-            
-            
+            absolute
            />
-      </View>
+          </View>
+            <View>
+              <CalendarPicker
+              //months={['Tammikuu', 'Helmikuu', 'Maaliskuu', 'Huhtikuu', 'Toukokuu', 'Kesäkuu', 'Heinäkuu', 'Elokuu', 'Syyskuu', 'Lokakuu', 'Marraskuu', 'Joulukuu']}
+               selectedStartDate={startDate}
+               selectedEndDate={endDate}
+               onDateChange={onDateClick}
+               allowRangeSelection={true}
+               resetSelections={true}
+               todayBackgroundColor='orange'
+               selectedDayColor='teal'
+               width={400}
+               
+               > 
+              </CalendarPicker>
+            </View>
           <TouchableOpacity style={styles.editButton3} title="" onPress={closeStatsModalVisible} >
             <Icon name="close" size={55} color="orange" /> 
           </TouchableOpacity>
         </View>
       </Modal>
-      <Modal visible={calendarModalVisible} animationType='slide' transparent={false} onPress={handleCalendarModalVisible}>
-        <View>
-          <CalendarPicker
-            onDateChange={onDatePress}
-            mode="month"
-          />
-        </View>
-        <Text onPress={closeCalendarModalVisible}>sulje</Text>
-      </Modal>
       <View style={styles.totalExpenseData}>
-            
-            <Text>{totalExpense} €</Text>
+        <View style={{alignContent: 'center' , margin: 10}}>
+          <Text style={styles.totalExpense}>{totalExpense}€</Text>
+        </View>
       </View>
+      
      </ScrollView>
     </View>
     
@@ -432,7 +455,7 @@ const styles = StyleSheet.create({
 
   },
   scrollContainer: {
-    backgroundColor: 'pink'
+    backgroundColor: 'blue'
   },
   modalContainer: {
     marginLeft:100,
@@ -467,7 +490,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'teal',
     width: '70%',
-    height: '70%',
+    height: '74.5%',
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
@@ -513,15 +536,16 @@ const styles = StyleSheet.create({
   },
   container2: {
     padding:1,
-    margin: 20,
+    marginTop: 20,
+    marginLeft: 60,
     alignItems: 'center',
     justifyContent: 'center',
-    width: '90%',
+    width: '70%',
     backgroundColor: 'teal',
     flexDirection: 'row',
     marginBottom: 5,
     borderWidth: 0.3,
-    borderRadius: 30,
+    borderRadius: 50,
     borderColor: 'white',
     shadowColor: "#000",
     shadowOffset: {
@@ -651,6 +675,7 @@ elevation: 4,
   modalContainer3: {
     margin:0,
     borderRadius: 20,
+    borderWidth: 0,
     padding: 35,
     alignItems: 'center',
     shadowColor: 'black',
@@ -672,23 +697,53 @@ elevation: 4,
   },
   totalExpenseData:{
     flex: 3, 
-    margin: 20,
-    width: '90%',
+    marginLeft: 65,
+    marginTop: 20,
+    marginBottom: 0,
+    marginRight: 10,
+    backgroundColor: 'teal',
+    width: '70%',
     //height: 100,
     justifyContent: 'center',
     alignItems: 'center', 
     borderRadius: 100,
-    backgroundColor: 'white',
+    flexDirection: 'row',
+    borderWidth: 0,
+    alignContent: 'space-between',
+  },
+  
+  totalExpense:{
+    borderWidth: 0,
+    paddingRight: 10,
+    margin: 5,
+    textAlign: 'center',
+    alignContent: 'center',
+    fontSize: 55,
+    backgroundColor: 'teal',
+    color: 'orange',
+    borderRadius: 50,
+
   },
   PieChart: {
     width: 400,
-    height: '70%',
-    marginLeft: 100,
+    height: '40%',
+    backgroundColor: 'white',
+    marginLeft: 108,
     marginTop: 0,
-    marginRight: 100 ,
+    marginRight: 110 ,
     borderColor: 'black',
-    borderWidth: 0,
+    borderWidth: 0.3,
     borderRadius: 50,
-    alignItems: 'center'
-  }
+    alignItems: 'center',
+    shadowColor: "teal",
+    shadowOffset: {
+	  width: 0,
+	  height: 1,
+},
+shadowOpacity: 1,
+shadowRadius: 1,
+
+elevation: 2,
+  },
+  
 })
