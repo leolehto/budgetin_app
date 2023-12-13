@@ -10,7 +10,6 @@ import {getDatabase, push, ref, onValue, remove, set, query, orderByChild, equal
 import CalendarPicker from 'react-native-calendar-picker';
 import moment, { months } from 'moment';
 
-
 //firebase Configuration
 const firebaseConfig = {
   apiKey: "AIzaSyD9v0yEX56WUmxTX7-B3yC0QmzcHwiBghc",
@@ -28,30 +27,27 @@ export default function Expense() {
   const [editing, setEditing] = useState(false);
   const [expense, setExpense] = useState(0.0);
   const [expenses, setExpenses] = useState([]);
-  const [description, setDescription] = useState("")
-  const [totalExpense, setTotalExpense] = useState(0.0);
+  const [description, setDescription] = useState("");
   const [category, setCategory] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
   const [expenseModalVisible, setExpenseModalVisible] = useState(false);
   const [expensesModalVisible, setExpensesModalVisible] = useState(false)
   const [statsModalVisible, setStatsModalVisible] = useState(false)
-  const [calendarModalVisible1, setCalendarModalVisible1] = useState(false)
+  const [calendarModalVisible, setCalendarModalVisible] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState(null);
   const {budget, updateBudget} = useBudget();
   const [statData, setStatData] = useState([]);
+  const [totalExpenseByDates, setTotalExpenseByDates] = useState(0.00)
 
-  const handleCalendarModalVisible1 = () => {
-    setCalendarModalVisible1(true)
-  }
-  const closeCalendarModalVisible1 = () => {
-    setCalendarModalVisible1(false)
-  }
 
   const [selectedDate, setSelectedDate] = useState('');
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState('');
+
+  
   const firstDayOfMonth = moment().startOf('month').format('YYYY-MM-DD');
   const lastDayOfMonth = moment().endOf('month').format('YYYY-MM-DD');
+  const currentDate = moment().toDate();
 
   const onDateClick = (date, type) => {
     if (type === 'END_DATE') {
@@ -59,6 +55,8 @@ export default function Expense() {
     } else {
       setStartDate(date);
       setEndDate(date);
+      //console.log(startDate)
+      //console.log(endDate)
     }
   };
 
@@ -78,6 +76,10 @@ export default function Expense() {
       onValue(expensesQuery, (snapshot) => {
         const expensesData = snapshot.val();
         const expensesArray = Object.values(expensesData || []);
+        const expenseAmountsArray = expensesArray.map((expense) => expense.amount);
+        const totalExpenseAmount = expenseAmountsArray.reduce((ex, amount) => ex + amount, 0);
+        setTotalExpenseByDates(totalExpenseAmount);
+        //console.log(totalExpenseAmount)
 
         const pieChartData = categories.map(category => {
           const expenseData = expensesArray.filter(item => item.category === category.value);
@@ -87,18 +89,19 @@ export default function Expense() {
             color: category.color
           };
         });
-
         setStatData(pieChartData);
         //console.log(pieChartData);
       });
+      
     }
   }, [startDate, endDate, categories]);
   
+  //set date when adding new expense
   const onDateChange = (date) => {
-    console.log(date)
+    //console.log(date)
     const formattedDate = moment(date).format('YYYY-MM-DD');
     setSelectedDate(formattedDate);
-    closeCalendarModalVisible1();
+    closeCalendarModalVisible();
   };
 
 
@@ -120,21 +123,15 @@ export default function Expense() {
     });
   }, [])
 
-//fetch data from totalExpense collection in firebase
-  useEffect(() => {
-    onValue(ref(database, 'totalExpense/'), (snapshot) => {
-      const data = snapshot.val();
-      const keys = Object.keys(data);
-      const totalData = Object.values(data).map((obj, index) => { 
-        return {...obj, key: keys[index] } 
-      });
-
-      setTotalExpense(totalData);
-    })
-  }, []);
-
  
   //Modal opening and closing handling
+  
+  const handleCalendarModalVisible = () => {
+    setCalendarModalVisible(true)
+  }
+  const closeCalendarModalVisible = () => {
+    setCalendarModalVisible(false)
+  }
 
   const handleEditClick = () => {
     setModalVisible(true);
@@ -166,6 +163,13 @@ export default function Expense() {
   }
   const closeStatsModalVisible = () => {
     setStatsModalVisible(false);
+  }
+
+  const setDay = () => {
+    setStartDate(currentDate);
+    setEndDate(currentDate);
+  }
+  const setMonth = () => {
     setStartDate(firstDayOfMonth);
     setEndDate(lastDayOfMonth);
   }
@@ -190,6 +194,8 @@ export default function Expense() {
       setDescription('');
       setExpenseModalVisible(false);
       const newBudget1 = budget - parseFloat(expense);
+      setStartDate(currentDate);
+      setEndDate(currentDate);
       
       const updatedCategories = categories.map((cat) => {
         if (cat.value === category) {
@@ -198,12 +204,10 @@ export default function Expense() {
         return cat;
       });
       setCategories(updatedCategories);
-      //update totalExpense in firebase
-      set(ref(database, 'totalExpense/'), totalExpense + parseFloat(expense));
      //push new expense to firebase
       push(ref(database, 'expenses/'), {...newExpense, date: selectedDate})
-      console.log(selectedDate)
-      console.log(newExpense)
+      //console.log(selectedDate)
+      //console.log(newExpense)
       const budgetRef = ref(database, 'budget');
       set(budgetRef, newBudget1)
       .then(() => {
@@ -214,7 +218,7 @@ export default function Expense() {
       })
     } 
   }
-
+  //delete expense from flatlist and firebase
   const deleteExpenses = (key) => {
     const expenseRef = ref(database, `expenses/${key}`);
     onValue(expenseRef, (snapshot) => {
@@ -223,13 +227,17 @@ export default function Expense() {
     if(expenseData !== null){  
       remove(expenseRef)
       .then(() => {
-        const newTotalExpense = totalExpense - expenseData.amount;
+        //update totalExpense and budget in app
+        //const newTotalExpense = totalExpense - expenseData.amount;
         const newBudget = budget + expenseData.amount; 
+        setStartDate(currentDate);
+        setEndDate(currentDate);
       try{
-        set(ref(database, 'totalExpense/'), newTotalExpense);
+        //update totalExpense and budget in firebase
+        //set(ref(database, 'totalExpense/'), newTotalExpense);
         set(ref(database, 'budget/'), newBudget);
-        setTotalExpense(newTotalExpense)
-        console.log("updated totalExpense: " , newTotalExpense)
+        //setTotalExpense(newTotalExpense)
+        //console.log("updated totalExpense: " , newTotalExpense)
         console.log("updated budget:",  newBudget)
         console.log("Expense deleted and totalExpense updated successfully.");
       }catch(error){
@@ -239,15 +247,7 @@ export default function Expense() {
     }});
   };
 
-  useEffect(() => {
-    let total = 0;
-    expenses.forEach((item) => {
-      total += item.amount;
-    });
-    setTotalExpense(total);
-    //console.log(totalExpense)
-  }, [expenses]);
-
+ 
   //categories including expenses, more can be added
   const [categories, setCategories] = useState([
     {key: '1', value: 'Ostokset', expenses: [], icon: 'shopping-cart', color: '#F44336'},
@@ -261,10 +261,7 @@ export default function Expense() {
     {key: '9', value: 'Muut', expenses: [], icon: 'question',color: '#E91E63'}
   ]);
 
- 
-
   return (
-    
     <View style={styles.container}>
       <ScrollView>
         <StatusBar animated={true} backgroundColor='teal'></StatusBar>
@@ -293,10 +290,7 @@ export default function Expense() {
       </View>
       </Modal>
       <View style={styles.editBudget}>
-        <Text onPress={handleEditClick} style={styles.text}>{budget} €</Text>
-        <TouchableOpacity color={'orange'} style={styles.editButton1} title="Muokkaa" onPress={handleEditClick} >
-          <Icon name='edit' color='orange' size={55}></Icon>
-        </TouchableOpacity>
+        <Text onPress={handleEditClick} style={styles.text}>{budget.toFixed(2)} €</Text>
       </View>
       <View style={styles.container2}>
       <TouchableOpacity color={'orange'} style={styles.expenseButton} title="Lisää kulu" onPress={handleAddExpenseClick} >
@@ -328,14 +322,17 @@ export default function Expense() {
               boxStyles={{ borderRadius: 50, width: 200, marginLeft: 5, borderColor: 'orange' }}
             />
             <Text style={{marginTop: 10}}>
-              <Icon name='calendar' color='orange' size={35}  onPress={handleCalendarModalVisible1} ></Icon>
+              <Icon name='calendar' color='orange' size={35}  onPress={handleCalendarModalVisible} ></Icon>
             </Text>
-          <Modal visible={calendarModalVisible1} animationType='slide' transparent={false} onPress={handleCalendarModalVisible1} >
+          <Modal visible={calendarModalVisible} animationType='slide' transparent={false} onPress={handleCalendarModalVisible} >
             <CalendarPicker
               onDateChange={onDateChange}
-              selectedDayColor='teal'
+              todayBackgroundColor = 'orange'
+              months={['Tammikuu', 'Helmikuu', 'Maaliskuu', 'Huhtikuu', 'Toukokuu', 'Kesäkuu', 
+              'Heinäkuu', 'Elokuu', 'Syyskuu', 'Lokakuu', 'Marraskuu', 'Joulukuu']}
+              weekdays = {['Su', 'Ma', 'Ti', 'Ke', 'To', 'Pe', 'La']}
           /> 
-          <Text onPress={closeCalendarModalVisible1} style={{marginLeft: 10}}>
+          <Text onPress={closeCalendarModalVisible} style={{marginLeft: 10}}>
             <Icon name='close' color='orange' size={50} ></Icon>
           </Text>
           </Modal>
@@ -376,13 +373,13 @@ export default function Expense() {
             keyExtractor={(item, index) => index.toString()}
             renderItem={({item}) => (
               <View style={styles.flatlistData}>
-                <Text onPress={() => deleteExpenses(item.key)} style={{color: 'orange', fontSize: 30, width:350, fontWeight: 'bold'}}>
-                  {item.date}                 <Icon name="trash-o" size={40} color="orange" />
+                <Text onPress={() => deleteExpenses(item.key)} style={{color: 'orange', fontSize: 25, width:350, fontWeight: 'bold'}}>
+                  {item.date}                          <Icon name="trash-o" size={35} color="orange" />
                 </Text>
-                <Text style={{color: 'orange', fontSize: 30, width:350, fontWeight: 'bold'}}>
+                <Text style={{color: 'orange', fontSize: 20, width:350, fontWeight: 'bold'}}>
                   {item.amount}€
                 </Text>
-                <Text style={{color: 'black', fontSize: 25, width:350}}>
+                <Text style={{color: 'black', fontSize: 15, width:350}}>
                   {item.description}
                 </Text>
               </View>
@@ -412,10 +409,14 @@ export default function Expense() {
             accessor="population"
             absolute
            />
+           <Text style={{fontSize: 20, color: 'orange', borderWidth: 0.5, borderRadius: 30, backgroundColor: 'teal', 
+            width: 120, textAlign: 'center', margin: 2}}>{totalExpenseByDates} €</Text>
           </View>
             <View>
               <CalendarPicker
-              //months={['Tammikuu', 'Helmikuu', 'Maaliskuu', 'Huhtikuu', 'Toukokuu', 'Kesäkuu', 'Heinäkuu', 'Elokuu', 'Syyskuu', 'Lokakuu', 'Marraskuu', 'Joulukuu']}
+               months={['Tammikuu', 'Helmikuu', 'Maaliskuu', 'Huhtikuu', 'Toukokuu', 'Kesäkuu', 
+               'Heinäkuu', 'Elokuu', 'Syyskuu', 'Lokakuu', 'Marraskuu', 'Joulukuu']}
+               weekdays = {['Su', 'Ma', 'Ti', 'Ke', 'To', 'Pe', 'La']}
                selectedStartDate={startDate}
                selectedEndDate={endDate}
                onDateChange={onDateClick}
@@ -424,21 +425,26 @@ export default function Expense() {
                todayBackgroundColor='orange'
                selectedDayColor='teal'
                width={400}
-               
                > 
               </CalendarPicker>
             </View>
           <TouchableOpacity style={styles.editButton3} title="" onPress={closeStatsModalVisible} >
             <Icon name="close" size={55} color="orange" /> 
           </TouchableOpacity>
+          
         </View>
       </Modal>
+      <View style={{flexDirection: 'row', marginLeft: 105}}>
+          <Text style={{fontSize: 20, padding: 5, borderWidth: 0.3, color: 'orange', backgroundColor: 'teal', borderRadius: 50, margin: 3, width: 100, textAlign: 'center' }}
+          onPress={setDay}>Päivä</Text>
+          <Text style={{fontSize: 20, padding: 5, borderWidth: 0.3, color: 'orange', backgroundColor: 'teal', borderRadius: 50, margin: 3, width: 100, textAlign: 'center'}} 
+          onPress={setMonth}>Kuukausi</Text>
+      </View>
       <View style={styles.totalExpenseData}>
         <View style={{alignContent: 'center' , margin: 10}}>
-          <Text style={styles.totalExpense}>{totalExpense}€</Text>
+          <Text style={styles.totalExpense}>{totalExpenseByDates.toFixed(2)}€</Text>
         </View>
       </View>
-      
      </ScrollView>
     </View>
     
@@ -512,7 +518,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 5,
     marginBottom: 5,
-    marginLeft: 40,
+    marginLeft: 80,
+    borderBottomWidth: 0.2,
+    backgroundColor: 'white',
+    width: 250
     
 
   },
@@ -726,7 +735,7 @@ elevation: 4,
   },
   PieChart: {
     width: 400,
-    height: '40%',
+    height: '42%',
     backgroundColor: 'white',
     marginLeft: 108,
     marginTop: 0,

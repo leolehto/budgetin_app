@@ -1,4 +1,3 @@
-import { StatusBar } from 'expo-status-bar';
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TextInput, FlatList, StyleSheet, TouchableOpacity, Modal, Button, ScrollView,} from 'react-native';
 import { SelectList } from 'react-native-dropdown-select-list';
@@ -27,29 +26,25 @@ export default function Income() {
   const [income, setIncome] = useState(0.0);
   const [incomes, setIncomes] = useState([]);
   const [description, setDescription] = useState("")
-  const [totalIncome, setTotalIncome] = useState(0.0);
   const [category, setCategory] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
   const [incomeModalVisible, setIncomeModalVisible] = useState(false);
   const [incomesModalVisible, setIncomesModalVisible] = useState(false)
-  const [calendarModalVisible, setCalendarModalVisible] = useState(false)
   const [calendarModalVisible1, setCalendarModalVisible1] = useState(false)
   const [statsModalVisible, setStatsModalVisible] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [statData, setStatData] = useState([]);
-  
-  const handleCalendarModalVisible1 = () => {
-    setCalendarModalVisible1(true)
-  }
-  const closeCalendarModalVisible1 = () => {
-    setCalendarModalVisible1(false)
-  }
+
   const [selectedDate, setSelectedDate] = useState("");
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState('');
   const firstDayOfMonth = moment().startOf('month').format('YYYY-MM-DD');
   const lastDayOfMonth = moment().endOf('month').format('YYYY-MM-DD');
+  const currentDate = moment().toDate();
+  const [totalIncomeByDates, setTotalIncomeByDates] = useState(0.00)
 
+  /*Set timeline in calendar, also fetch data from incomes in firebase, sort by date.
+  Save income amounts by category and date into piechart */ 
   const onDateClick = (date, type) => {
     if (type === 'END_DATE') {
       setEndDate(date);
@@ -75,10 +70,13 @@ export default function Income() {
       onValue(incomesQuery, (snapshot) => {
         const incomesData = snapshot.val();
         const incomesArray = Object.values(incomesData || []);
+        const incomesAmountsArrays = incomesArray.map((income) => income.amount);
+        const totalIncomesAmount = incomesAmountsArrays.reduce((inc, amount) => inc + amount, 0); 
+        setTotalIncomeByDates(totalIncomesAmount)
 
         const pieChartData = categories.map(category => {
           const incomeData = incomesArray.filter(item => item.category === category.value);
-          console.log(incomeData)
+          //console.log(incomeData)
           return {
             name: category.value + ' (€)',
             population: incomeData.reduce((total, income) => total + income.amount, 0),
@@ -87,18 +85,20 @@ export default function Income() {
         });
 
         setStatData(pieChartData);
-        console.log(pieChartData);
+        //console.log(pieChartData);
       });
     }
   }, [startDate, endDate, categories]);
-
+  
+  //When settin new income set date in wanted format(supported by fireabase)
   const onDateChange = (date) => {
     console.log(date)
     const formattedDate = moment(date).format('YYYY-MM-DD');
     setSelectedDate(formattedDate);
     closeCalendarModalVisible1();
   };
-
+  
+  //fetch incomes from firebase
   useEffect(() => {
     const itemsRef = ref(database, 'incomes/');
     onValue(itemsRef, (snapshot) => {
@@ -114,20 +114,15 @@ export default function Income() {
       }
     })
   }, [])
-
-  useEffect(() => {
-    onValue(ref(database, 'totalIncome/'), (snapshot) => {
-      const data = snapshot.val();
-      const keys = Object.keys(data);
-      const totalIncomeData = Object.values(data).map((obj, index) => { 
-        return {...obj, key: keys[index] } 
-      });
-
-      setTotalIncome(totalIncomeData);
-    })
-  }, []);
-
   
+
+  //handle modals
+  const handleCalendarModalVisible1 = () => {
+    setCalendarModalVisible1(true)
+  }
+  const closeCalendarModalVisible1 = () => {
+    setCalendarModalVisible1(false)
+  }
   
   const handleEditClick = () => {
     setModalVisible(true);
@@ -154,16 +149,28 @@ export default function Income() {
 
   const handleStatsModalVisible = () => {
     setStatsModalVisible(true)
+    //in statsModal set calendar to cover whole month
     setStartDate(firstDayOfMonth);
     setEndDate(lastDayOfMonth);
   }
   const closeStatsModalVisible = () => {
     setStatsModalVisible(false)
+    //in statsModal set calendar to cover whole month
     setStartDate(firstDayOfMonth);
     setEndDate(lastDayOfMonth);
   }
+
+  const setDay = () => {
+    setStartDate(currentDate);
+    setEndDate(currentDate);
+  }
+  const setMonth = () => {
+    setStartDate(firstDayOfMonth);
+    setEndDate(lastDayOfMonth);
+  }
+  //use budget from budgetContext
   const {budget, updateBudget} = useBudget();
-  
+
   const handleSaveClick = () => {
     const newBudget = parseFloat(budget);
     if (!isNaN(newBudget) && newBudget >= 0) {
@@ -172,7 +179,7 @@ export default function Income() {
       setModalVisible(false)
     }
   };
-
+  //add new income
   const addIncome = () => {
     if (income !== '' && category !== '' && description!= '' && parseFloat(income) > 0 && selectedDate) {
       const newIncome = {description, category, amount: parseFloat(income), tag: 'income', date: selectedDate };
@@ -192,9 +199,9 @@ export default function Income() {
       
       setCategories(updatedCategories);
 
-      set(ref(database, 'totalIncome/'),totalIncome + parseFloat(income));
+      //update data in firebase
       push(ref(database, 'incomes/'), {...newIncome, date: selectedDate});
-      
+      //update budget in firebase
       const budgetRef = ref(database, 'budget');
       set(budgetRef, newBudget2)
       .then(() => {
@@ -205,6 +212,7 @@ export default function Income() {
       })
     } 
   }
+  //delete income
   const deleteIncome = (key) => {
     const incomeRef = ref(database, `incomes/${key}`);
     onValue(incomeRef, (snapshot) => {
@@ -213,14 +221,13 @@ export default function Income() {
     if(incomeData !== null){  
       remove(incomeRef)
       .then(() => {
-        const newTotalIncome = totalIncome - incomeData.amount;
+        //update totalIncome and budget in app
         const newBudget = budget - incomeData.amount; 
       try{
-        set(ref(database, 'totalIncome/'), newTotalIncome);
+        //update totalIncome and budget in firebase
         set(ref(database, 'budget/'), newBudget);
-        setTotalIncome(newTotalIncome)
-        console.log("updated totalIncmoe: " , newTotalIncome)
-        console.log("updated budget:",  newBudget)
+        //console.log("updated totalIncmoe: " , newTotalIncome)
+        //console.log("updated budget:",  newBudget)
         console.log("Income deleted and totalIncome updated successfully.");
       }catch(error){
         console.error("Error updating totalIncome:", error)
@@ -228,24 +235,13 @@ export default function Income() {
       })
     }});
   };
-
   
-
-  useEffect(() => {
-    let total = 0;
-    incomes.forEach((item) => {
-      total += item.amount;
-    });
-    setTotalIncome(total);
-  }, [incomes]);
-
+  //categories for incomes, more can be added
   const [categories, setCategories] = useState([
     { key: '1', value: 'Palkka', incomes: [], icon: 'euro', color: '#E57373'},
     { key: '2', value: 'Lahja', incomes: [], icon: 'gift', color: '#7986CB' },
     { key: '3', value: 'Muut', incomes: [], icon: 'question', color: '#9575CD' },
     { key: '4', value: 'Kumppani', incomes: [], icon: 'user', color: '#FFF176' },
-  
-    // Add more categories as needed
   ]);
   
    
@@ -278,10 +274,7 @@ export default function Income() {
       </View>
       </Modal>
       <View style={styles.editBudget}>
-        <Text onPress={handleEditClick} style={styles.text}>{budget} €</Text>
-        <TouchableOpacity color={'orange'} style={styles.editButton1} title="Muokkaa" onPress={handleEditClick} >
-          <Icon name='edit' color='orange' size={55}></Icon>
-        </TouchableOpacity>
+        <Text onPress={handleEditClick} style={styles.text}>{budget.toFixed(2)} €</Text>
       </View>
       <View style={styles.container2}>
       <TouchableOpacity color={'orange'} style={styles.expenseButton} title="Lisää kulu" onPress={handleAddIncomeClick} >
@@ -318,6 +311,10 @@ export default function Income() {
             <Modal visible={calendarModalVisible1} animationType='slide' transparent={false} onPress={handleCalendarModalVisible1} >
             <CalendarPicker
               onDateChange={onDateChange}
+              todayBackgroundColor = 'orange'
+              months={['Tammikuu', 'Helmikuu', 'Maaliskuu', 'Huhtikuu', 'Toukokuu', 'Kesäkuu', 
+              'Heinäkuu', 'Elokuu', 'Syyskuu', 'Lokakuu', 'Marraskuu', 'Joulukuu']}
+              weekdays = {['Su', 'Ma', 'Ti', 'Ke', 'To', 'Pe', 'La']}
           /> 
           <Text onPress={closeCalendarModalVisible1} style={{marginLeft: 170}}>
             <Icon name='close' color='orange' size={50} ></Icon>
@@ -360,13 +357,13 @@ export default function Income() {
             keyExtractor={(item, index) => index.toString()}
             renderItem={({item}) => (
               <View style={styles.flatlistData}>
-                <Text onPress={() => deleteIncome(item.key)} style={{color: 'orange', fontSize: 30, width:350, fontWeight: 'bold'}}>
-                  {item.date}                 <Icon name="trash-o" size={40} color="orange" />
+                <Text onPress={() => deleteIncome(item.key)} style={{color: 'orange', fontSize: 25, width:350, fontWeight: 'bold'}}>
+                {item.date}                          <Icon name="trash-o" size={35} color="orange" /> 
                 </Text>
-                <Text style={{color: 'orange', fontSize: 30, width:350, fontWeight: 'bold'}}>
+                <Text style={{color: 'orange', fontSize: 20, width:350, fontWeight: 'bold'}}>
                   {item.amount}€
                 </Text>
-                <Text style={{color: 'black', fontSize: 25, width:350}} onPress={() => deleteFinances(item.key)}>
+                <Text style={{color: 'black', fontSize: 15, width:350}} onPress={() => deleteFinances(item.key)}>
                   {item.description} 
                 </Text>
               </View>
@@ -396,10 +393,14 @@ export default function Income() {
             accessor="population"
             absolute
            />
+           <Text style={{fontSize: 20, color: 'orange', borderWidth: 0.5, borderRadius: 30, backgroundColor: 'teal', 
+            width: 120, textAlign: 'center', margin: 2}}>{totalIncomeByDates} €</Text>
       </View>
         <View>
           <CalendarPicker
-           //months={['Tammikuu', 'Helmikuu', 'Maaliskuu', 'Huhtikuu', 'Toukokuu', 'Kesäkuu', 'Heinäkuu', 'Elokuu', 'Syyskuu', 'Lokakuu', 'Marraskuu', 'Joulukuu']}
+            months={['Tammikuu', 'Helmikuu', 'Maaliskuu', 'Huhtikuu', 'Toukokuu', 'Kesäkuu', 
+            'Heinäkuu', 'Elokuu', 'Syyskuu', 'Lokakuu', 'Marraskuu', 'Joulukuu']}
+            weekdays = {['Su', 'Ma', 'Ti', 'Ke', 'To', 'Pe', 'La']}
             selectedStartDate={startDate}
             selectedEndDate={endDate}
             onDateChange={onDateClick}
@@ -415,9 +416,15 @@ export default function Income() {
           </TouchableOpacity>
         </View>
       </Modal>
+      <View style={{flexDirection: 'row', marginLeft: 100}}>
+          <Text style={{fontSize: 20, padding: 5, borderWidth: 0.3, color: 'orange', backgroundColor: 'teal', borderRadius: 50, margin: 3, width: 100, textAlign: 'center' }}
+          onPress={setDay}>Päivä</Text>
+          <Text style={{fontSize: 20, padding: 5, borderWidth: 0.3, color: 'orange', backgroundColor: 'teal', borderRadius: 50, margin: 3, width: 100, textAlign: 'center'}} 
+          onPress={setMonth}>Kuukausi</Text>
+      </View>
       <View style={styles.totalIncomeData}>
         <View style={{alignContent: 'center' , margin: 10}}>
-          <Text style={styles.totalIncome}>{totalIncome}€</Text>
+          <Text style={styles.totalIncome}>{totalIncomeByDates.toFixed(2)}€</Text>
         </View>
       </View>
      </ScrollView>
@@ -493,7 +500,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 5,
     marginBottom: 5,
-    marginLeft: 40,
+    marginLeft: 80,
+    borderBottomWidth: 0.2,
+    backgroundColor: 'white',
+    width: 250
     
 
   },

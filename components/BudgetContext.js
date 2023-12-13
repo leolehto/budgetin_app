@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { ref, onValue, push, set, getDatabase } from 'firebase/database'; 
+import { ref, onValue, set, getDatabase } from 'firebase/database'; 
 import { initializeApp } from "firebase/app";
+
 const firebaseConfig = {
     apiKey: "AIzaSyD9v0yEX56WUmxTX7-B3yC0QmzcHwiBghc",
     authDomain: "budgetin-app-ca711.firebaseapp.com",
@@ -37,6 +38,7 @@ export const BudgetProvider = ({children}) => {
             //console.error('Invalid budget value:', newBudget)
             return;
         }
+
         const budgetRef = ref(database, 'budget');
         set(budgetRef, newBudget)
             .then(() => {
